@@ -3,7 +3,9 @@ name: CreateCluster
 kind: clusterConfig
 spec:
   clusterSize:
-    XL: 
+  ---Users can define any number of T-shirt for their cluster.
+  ---Only one size is applicable/job.
+    XL:
       instance_type_master: r5.4xlarge
       instance_num_on_demand_master: 1
       instance_num_spot_master: 2
@@ -19,7 +21,7 @@ spec:
       instance_num_spot_task: 5
       instance_ebs_size_task: 100
       spot_bid_percentage_of_on_demand_task: 50
-    L: 
+    L:
       instance_type_master: r5.4xlarge
       instance_num_on_demand_master: 1
       instance_num_spot_master: 2
@@ -35,7 +37,7 @@ spec:
       instance_num_spot_task: 2
       instance_ebs_size_task: 100
       spot_bid_percentage_of_on_demand_task: 50
-    M: 
+    M:
       instance_type_master: r5.4xlarge
       instance_num_on_demand_master: 1
       instance_num_spot_master: 1
@@ -51,7 +53,7 @@ spec:
       instance_num_spot_task: 0
       instance_ebs_size_task: 0
       spot_bid_percentage_of_on_demand_task: 0
-    S: 
+    S:
       instance_type_master: r5.4xlarge
       instance_num_on_demand_master: 1
       instance_num_spot_master: 1
@@ -68,6 +70,8 @@ spec:
       instance_ebs_size_task: 0
       spot_bid_percentage_of_on_demand_task: 0
   appVersion:
+    ---Mapping of application version to emr release label.
+    ---Only one application version is applicable for a job.
     spark:
       2.4.4 : emr-5.28.0
       2.4.3 : emr-5.26.0
@@ -75,7 +79,9 @@ spec:
     presto:
       0.227: emr-5.28.0
       0.224: emr-5.27.0
-  clusterSetting:
+  clusterParamSet:
+    ---Users can optionally choose to maintain multiple parameter sets.
+    ---Only one parameter set is applicable for a job.
     default:
       logging_s3_path: s3://
       subnet_id: subnet-09ca6127

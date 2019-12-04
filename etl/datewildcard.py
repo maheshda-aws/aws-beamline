@@ -27,7 +27,7 @@ class DateWildcard():
         self.wildcard_string = wildcard_string
         self._date = date
         self._yyyy, self._mm, self._dd, self._hh, self._mi, self._ss = self._date.year, self._date.month, self._date.day, self._date.hour, self._date.minute, self._date.second
-     
+
     @property
     def year(self):
         return str(self._yyyy)
@@ -39,19 +39,19 @@ class DateWildcard():
     @property
     def day(self):
         return str(self._dd).zfill(2)
-    
+
     @property
     def hour(self):
         return str(self._hh).zfill(2)
-    
+
     @property
     def minute(self):
         return str(self._mi).zfill(2)
-    
+
     @property
     def second(self):
         return str(self._ss).zfill(2)
-    
+
     @property
     def date_parts(self):
         return {"YYYY": self.year, "MM": self.month, "DD": self.day, "HH": self.hour, "MI": self.minute, "SS": self.second}

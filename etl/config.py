@@ -7,7 +7,9 @@ class Config():
 
     def __init__(self, config_location):
         self._config_location = config_location
-        self.job_config = yaml.parse()
+        self.job_config = yaml.parse(self._config_location)
+
+
 
 
 

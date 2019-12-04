@@ -13,11 +13,7 @@ class Session:
     """
     A session stores AWS configuration state (e.g. Boto3.Session)
     """
-    def __init__(
-            self,
-            aws_session,
-            botocore_max_retries=5
-    ):
+    def __init__(self, aws_session, botocore_max_retries=5):
         """
         Most parameters inherit from Boto3
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
