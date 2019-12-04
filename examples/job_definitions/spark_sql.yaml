@@ -1,0 +1,28 @@
+--- Example SQL job definition
+apiVersion: 1.0.0
+name: CreateJob
+kind: jobConfig
+spec:
+  jobName: maheshda_test_spark
+  namespace: maheshda
+  priority: high
+  compute:
+    size: L
+    paraSetName: default
+    appName: spark
+    appVersion: 2.4.4
+  executable:
+    type: sql
+    sql_location: s3://
+  input_location:
+    s3:
+    - path:
+      alias:
+    - path:
+      alias:
+    table:
+    - table1
+    - table2
+  output_location:
+    type: s3
+    location: s3://
