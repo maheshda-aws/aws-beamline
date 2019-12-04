@@ -1,6 +1,6 @@
 # AWS Beamline
 
-## What does AWS Beamline means?
+## What is AWS Beamline?
 
 AWS beamline is meant to be an accelarator for adoption of AWS data analytics services without handling the complexity of underlying infrastructure management. 
 
