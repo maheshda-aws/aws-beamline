@@ -3,11 +3,11 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Assign the ID of an existing cluster to the following variable
-job_flow_id = 'j-KL5V46MBENH1'
+job_flow_id = 'j-22C1QYTU1ILQK'
 
 # Define a job flow step. Assign appropriate values as desired.
 job_flow_step_01 = {
-    'Name': 'ParquetConversion',
+    'Name': 'SQLRunner',
     'ActionOnFailure': 'CONTINUE',
     'HadoopJarStep': {
         'Jar': 'command-runner.jar',

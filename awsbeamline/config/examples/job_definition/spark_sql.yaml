@@ -1,0 +1,18 @@
+version: 0.0.1
+name: submitJob
+kind: SQL
+spec:
+  metadata:
+    jobName: maheshda_test_spark
+    namespace: maheshda
+    priority: high
+  compute:
+    size: L
+    paramSetName: default
+    engine: spark
+    engineVersion: 2.4.4
+  executable:
+    location: s3://beamline-us-east-1-beta/sql/test.sql
+    output:
+      location: s3://maheshda-file-bucket/beamline_output2/year=2019/month=12/date=20/
+      format: parquet

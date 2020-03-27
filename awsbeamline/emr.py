@@ -1,26 +1,22 @@
-"""
-Module to handle all utilities related to EMR (Elastic Map Reduce)
-https://aws.amazon.com/emr/
-"""
 from typing import Optional, List, Dict, Any, Union, Collection
 import logging
 import json
 
-from boto3 import client
-
-logger = logging.getLogger(__name__)
-
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
 
 class EMR:
-    """
-    EMR representation
-    """
+
     def __init__(self, session):
-        self._session = session
-        self._client_emr: client = session.aws_session.client(service_name="emr")
+        self.session = session
+        self._client_emr = self.session.aws_session.client(service_name="emr")
+
 
     @staticmethod
     def _build_cluster_args(**pars):
+
         args: Dict = {
             "Name": pars["cluster_name"],
             "LogUri": pars["logging_s3_path"],
@@ -33,7 +29,9 @@ class EMR:
                 "TerminationProtected": pars["termination_protected"],
                 "Ec2SubnetId": pars["subnet_id"],
                 "InstanceFleets": []
-            }
+            },
+            "EbsRootVolumeSize": pars["ebs_root_volume_size"],
+            "StepConcurrencyLevel": pars["num_concurrent_steps"]
         }
 
         # EC2 Key Pair
@@ -271,7 +269,7 @@ class EMR:
         if pars["tags"] is not None:
             args["Tags"] = [{"Key": k, "Value": v} for k, v in pars["tags"].items()]
 
-        logger.info(f"args: \n{json.dumps(args, default=str, indent=4)}")
+        logging.info(f"args: \n{json.dumps(args, default=str, indent=4)}")
         return args
 
     def create_cluster(self,
@@ -281,6 +279,8 @@ class EMR:
                        subnet_id: str,
                        emr_ec2_role: str,
                        emr_role: str,
+                       num_concurrent_steps: int,
+                       ebs_root_volume_size: int,
                        instance_type_master: str,
                        instance_type_core: str,
                        instance_type_task: str,
@@ -325,138 +325,164 @@ class EMR:
                        termination_protected: bool = False,
                        tags: Optional[Dict[str, str]] = None):
         """
-        Create a EMR cluster with instance fleets configuration
-        https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-instance-fleet.html
-        :param cluster_name: Cluster name
-        :param logging_s3_path: Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/)
-        :param emr_release: EMR release (e.g. emr-5.27.0)
-        :param subnet_id: VPC subnet ID
-        :param emr_ec2_role: IAM role name
-        :param emr_role: IAM role name
-        :param instance_type_master: EC2 instance type
-        :param instance_type_core: EC2 instance type
-        :param instance_type_task: EC2 instance type
-        :param instance_ebs_size_master: Size of EBS in GB
-        :param instance_ebs_size_core: Size of EBS in GB
-        :param instance_ebs_size_task: Size of EBS in GB
-        :param instance_num_on_demand_master: Number of on demand instances
-        :param instance_num_on_demand_core: Number of on demand instances
-        :param instance_num_on_demand_task: Number of on demand instances
-        :param instance_num_spot_master: Number of spot instances
-        :param instance_num_spot_core: Number of spot instances
-        :param instance_num_spot_task: Number of spot instances
-        :param spot_bid_percentage_of_on_demand_master: The bid price, as a percentage of On-Demand price
-        :param spot_bid_percentage_of_on_demand_core: The bid price, as a percentage of On-Demand price
-        :param spot_bid_percentage_of_on_demand_task: The bid price, as a percentage of On-Demand price
-        :param spot_provisioning_timeout_master: The spot provisioning timeout period in minutes. If Spot instances are not provisioned within this time period, the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440. The timeout applies only during initial provisioning, when the cluster is first created.
-        :param spot_provisioning_timeout_core: The spot provisioning timeout period in minutes. If Spot instances are not provisioned within this time period, the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440. The timeout applies only during initial provisioning, when the cluster is first created.
-        :param spot_provisioning_timeout_task: The spot provisioning timeout period in minutes. If Spot instances are not provisioned within this time period, the TimeOutAction is taken. Minimum value is 5 and maximum value is 1440. The timeout applies only during initial provisioning, when the cluster is first created.
-        :param spot_timeout_to_on_demand_master: After a provisioning timeout should the cluster switch to on demand or shutdown?
-        :param spot_timeout_to_on_demand_core: After a provisioning timeout should the cluster switch to on demand or shutdown?
-        :param spot_timeout_to_on_demand_task: After a provisioning timeout should the cluster switch to on demand or shutdown?
-        :param python3: Python 3 Enabled?
-        :param spark_glue_catalog: Spark integration with Glue Catalog?
-        :param hive_glue_catalog: Hive integration with Glue Catalog?
-        :param presto_glue_catalog: Presto integration with Glue Catalog?
-        :param bootstraps_paths: Bootstraps paths (e.g ["s3://BUCKET_NAME/script.sh"])
-        :param debugging: Debugging enabled?
-        :param applications: List of applications (e.g ["Hadoop", "Spark", "Ganglia", "Hive"])
-        :param visible_to_all_users: True or False
-        :param key_pair_name: Key pair name (string)
-        :param security_group_master: The identifier of the Amazon EC2 security group for the master node.
-        :param security_groups_master_additional: A list of additional Amazon EC2 security group IDs for the master node.
-        :param security_group_slave: The identifier of the Amazon EC2 security group for the core and task nodes.
-        :param security_groups_slave_additional: A list of additional Amazon EC2 security group IDs for the core and task nodes.
-        :param security_group_service_access: The identifier of the Amazon EC2 security group for the Amazon EMR service to access clusters in VPC private subnets.
-        :param spark_log_level: log4j.rootCategory log level (ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF, TRACE)
-        :param spark_jars_path: spark.jars (e.g. [s3://.../foo.jar, s3://.../boo.jar]) (https://spark.apache.org/docs/latest/configuration.html)
-        :param spark_defaults: (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#spark-defaults)
-        :param maximize_resource_allocation: Configure your executors to utilize the maximum resources possible (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-configure.html#emr-spark-maximizeresourceallocation)
-        :param steps: Steps definitions (Obs: Use EMR.build_step() to build that)
-        :param keep_cluster_alive_when_no_steps: Specifies whether the cluster should remain available after completing all steps
-        :param termination_protected: Specifies whether the Amazon EC2 instances in the cluster are protected from termination by API calls, user intervention, or in the event of a job-flow error.
-        :param tags: Key/Value collection to put on the Cluster. (e.g. {"foo": "boo", "bar": "xoo"})
-        :return: Cluster ID (string)
-        """
+        Create an EMR cluster using instance fleet configurations
+
+        Arguments:
+            cluster_name {str} -- Cluster name
+            logging_s3_path {str} -- Logging s3 path (e.g. s3://BUCKET_NAME/DIRECTORY_NAME/)
+            emr_release {str} -- EMR release (e.g. emr-5.28.0)
+            subnet_id {str} -- VPC subnet ID
+            emr_ec2_role {str} -- IAM role name for cluster EC2 instance (https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html)
+            emr_role {str} -- IAM role name for EMR (https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html)
+            num_concurrent_steps {int} -- Number of concurrent steps to execute
+            ebs_root_volume_size {int} -- Root volume size in GB
+            instance_type_master {str} -- Type of master node (see EC2 instance types)
+            instance_type_core {str} -- Type of core node (see EC2 instance types)
+            instance_type_task {str} -- Type of task node (see EC2 instance types)
+            instance_ebs_size_master {int} -- EBS size on master node in GB
+            instance_ebs_size_core {int} -- EBS size on core node in GB
+            instance_ebs_size_task {int} -- EBS size on task node in GB
+            instance_num_on_demand_master {int} -- Number of master nodes on demand
+            instance_num_on_demand_core {int} -- Number of core nodes on demand
+            instance_num_on_demand_task {int} -- Number of task nodes on demand
+            instance_num_spot_master {int} -- Number of master nodes on spot pricing
+            instance_num_spot_core {int} -- Number of core nodes on spot pricing
+            instance_num_spot_task {int} -- Number of task nodes on spot pricing
+            spot_bid_percentage_of_on_demand_master {int} -- Spot bid price as percentage of on demand pricing for master node
+            spot_bid_percentage_of_on_demand_core {int} -- Spot bid price as percentage of on demand pricing for core node
+            spot_bid_percentage_of_on_demand_task {int} -- Spot bid price as percentage of on demand pricing for task node
+            spot_provisioning_timeout_master {int} -- The spot provisioning timeout period in minutes for master node(between 5 to 1440). 
+            spot_provisioning_timeout_core {int} -- The spot provisioning timeout period in minutes for core node (between 5 to 1440). 
+            spot_provisioning_timeout_task {int} --The spot provisioning timeout period in minutes for task node (between 5 to 1440). 
+
+        Keyword Arguments:
+            spot_timeout_to_on_demand_master {bool} -- After timeout of spot bidding fall back to on demand? (default: {True})
+            spot_timeout_to_on_demand_core {bool} -- After timeout of spot bidding fall back to on demand?  (default: {True})
+            spot_timeout_to_on_demand_task {bool} -- After timeout of spot bidding fall back to on demand?  (default: {True})
+            python3 {bool} -- Python3 default enabled (default: {True})
+            spark_glue_catalog {bool} -- Spark on glue catalog enabled? (default: {True})
+            hive_glue_catalog {bool} -- Hive on glue catalog enabled? (default: {True})
+            presto_glue_catalog {bool} -- Presto on glue catalog enabled? (default: {True})
+            bootstraps_paths {Optional[List[str]]} -- Bootstrap paths in s3 (e.g ["s3://<bucket_name>/script.sh"]) (default: {None})
+            debugging {bool} -- Debugging enabled? (default: {True})
+            applications {Optional[List[str]]} -- List of application to be included (default: {None})
+            visible_to_all_users {bool} -- Is cluster visible to all users? (default: {True})
+            key_pair_name {Optional[str]} -- Key pair name (default: {None})
+            security_group_master {Optional[str]} -- Master  security group (default: {None})
+            security_groups_master_additional {Optional[List[str]]} -- Additional security group for master (default: {None})
+            security_group_slave {Optional[str]} -- Slave security group (default: {None})
+            security_groups_slave_additional {Optional[List[str]]} -- Additional security group for slave (default: {None})
+            security_group_service_access {Optional[str]} -- Amazon EC2 security group for the Amazon EMR service to access clusters in VPC private subnets. (default: {None})
+            spark_log_level {str} -- Log level(default: {"WARN"})
+            spark_jars_path {Optional[List[str]]} -- Spark jar in s3 (default: {None})
+            spark_defaults {Dict[str, str]} -- Spark defaults (default: {None})
+            maximize_resource_allocation {bool} -- Configure your executors to utilize the maximum resources possible? (default: {False})
+            steps {Optional[List[Dict[str, Collection[str]]]]} -- Steps to execute(default: {None})
+            keep_cluster_alive_when_no_steps {bool} -- Keep cluster alive when no steps executed? (default: {True})
+            termination_protected {bool} -- Termination protection enabled? (default: {False})
+            tags {Optional[Dict[str, str]]} -- Tags(default: {None})
+
+        Returns:
+            Dictionary -- Response from emr run_job_flow API
+        """ 
+
         args = EMR._build_cluster_args(**locals())
         response = self._client_emr.run_job_flow(**args)
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
-        return response["JobFlowId"]
+        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        return response
 
     def get_cluster_state(self, cluster_id: str) -> str:
+
         """
-        Get the EMR cluster state
-        Possible states: 'STARTING', 'BOOTSTRAPPING', 'RUNNING', 'WAITING', 'TERMINATING', 'TERMINATED', 'TERMINATED_WITH_ERRORS'
-        :param cluster_id: EMR Cluster ID
-        :return: State (string)
+        Get state of a cluster given its cluster id  
+
+        Arguments:
+            cluster_id {str} -- JobflowId
+
+        Returns:
+            str -- State of cluster like WAITING, RUNNING, STARTING etc.
         """
         response: Dict = self._client_emr.describe_cluster(ClusterId=cluster_id)
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
         return response["Cluster"]["Status"]["State"]
+
+    def get_cluster_description(self, cluster_id: str):
+        """
+        Describe cluster for given JobFlowId
+
+        Arguments:
+            cluster_id {str} -- JobFlowId
+
+        Returns:
+            Dictionary -- Response to describe cluster API
+        """
+        response: Dict = self._client_emr.describe_cluster(ClusterId=cluster_id)
+        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        return response
+
+    def get_cluster_instances(self, cluster_id: str, instance_group_types: List=["MASTER"]):
+        """
+        Get instance details of an EMR cluster
+
+        Arguments:
+            cluster_id {str} -- JobFlowId
+
+        Keyword Arguments:
+            instance_group_types {List} -- Type if instance (default: {["MASTER"]})
+
+        Returns:
+            Dictionary-- Response of list_instances API
+        """
+        response: Dict = self._client_emr.list_instances(ClusterId=cluster_id, InstanceGroupTypes=instance_group_types)
+        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        return response
 
     def terminate_cluster(self, cluster_id: str) -> None:
         """
-        Terminate the cluster
-        :param cluster_id: EMR Cluster ID
-        :return: None
+        Terminate an EMR cluster.
+
+        Arguments:
+            cluster_id {str} -- JobFlowId
+
+        Returns:
+            Dictionary-- Response of terminate_job_flows API
         """
         response: Dict = self._client_emr.terminate_job_flows(JobFlowIds=[
             cluster_id,
         ])
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        return response
 
-    def submit_sql_step(self,
-                    cluster_id: str,
-                    name: str,
-                    command: str,
-                    action_on_failure: str = "CONTINUE",
-                    script: bool = False) -> str:
-        """
-        Submit new job in the EMR Cluster
-        :param cluster_id: EMR Cluster ID
-        :param name: Step name
-        :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
-        :param action_on_failure: 'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-        :param script: True for raw command or False for script runner (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html)
-        :return: Step ID
-        """
-        step = EMR.build_sql_step(self, name=name, command=command, action_on_failure=action_on_failure, script=script)
-        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
-        return response["StepIds"][0]
+    def build_sql_step(self, sql_script: str, output_location: str, output_format: str, 
+                             action_on_failure: str = "CONTINUE") -> Dict[str, Collection[str]]:
 
-    def build_sql_step(self, name: str, command: str, action_on_failure: str = "CONTINUE",
-                   script: bool = False) -> Dict[str, Collection[str]]:
-        """
-        Build the Step dictionary
-        :param name: Step name
-        :param command: e.g. 'echo "Hello!"' | e.g. for script 's3://.../script.sh arg1 arg2'
-        :param action_on_failure: 'TERMINATE_JOB_FLOW', 'TERMINATE_CLUSTER', 'CANCEL_AND_WAIT', 'CONTINUE'
-        :param script: True for raw command or False for script runner (https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-commandrunner.html)
-        :return: Step Dict
-        """
         jar: str = "command-runner.jar"
-        if script is True:
-            region: str = self._session.region_name
-            jar = f"s3://{region}.elasticmapreduce/libs/script-runner/script-runner.jar"
         step = {
-            "Name": name,
+            "Name": str(self.session.profile_name),
             "ActionOnFailure": action_on_failure,
             "HadoopJarStep": {
                 "Jar": jar,
-                "Args": command.split(" ")
+                "Args": ['spark-submit',
+                        '--deploy-mode', 'cluster',
+                        's3://{}/_beamline/beamline_sql_runner.py'.format(self.session.constants.BEAMLINE_BUCKET_NAME),
+                        '-i', str(self.session.session_instance_id),
+                        '-s', sql_script,
+                        '-o', output_location,
+                        '-f', output_format
+                        ]
             }
         }
+        logging.info("Step definition: json.dumps(step, default=str, indent=4)")
         return step
 
-    def get_step_state(self, cluster_id: str, step_id: str) -> str:
-        """
-        Get the EMR step state
-        Possible states: 'PENDING', 'CANCEL_PENDING', 'RUNNING', 'COMPLETED', 'CANCELLED', 'FAILED', 'INTERRUPTED',
-        :param cluster_id: EMR Cluster ID
-        :param step_id: EMR Step ID
-        :return: State (string)
-        """
-        response: Dict = self._client_emr.describe_step(ClusterId=cluster_id, StepId=step_id)
-        logger.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
-        return response["Step"]["Status"]["State"]
+    def submit_sql_step(self,
+                        cluster_id: str,
+                        sql_script: str,
+                        output_location: str,
+                        output_format: str,
+                        action_on_failure: str = "CONTINUE"):
+
+        step = self.build_sql_step(sql_script=sql_script, output_location=output_location, output_format=output_format, action_on_failure=action_on_failure)
+        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+        logging.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        return response["StepIds"][0]
