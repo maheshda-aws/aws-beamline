@@ -8,10 +8,10 @@ class EMRConfig:
     def __init__(self, session, emr_config_file: str):
         self.session= session
         self._emr_config = yaml.load(open(emr_config_file), Loader=yaml.SafeLoader).get("spec")
-        self._cluster_size = self.session.job_config.compute_size
-        self._app_name = self.session.job_config.compute_engine
-        self._app_version = self.session.job_config.compute_engine_version
-        self._param_set_name = self.session.job_config.compute_param_set_name
+        self._cluster_size = self.session.config_parser.compute_size
+        self._app_name = self.session.config_parser.compute_engine
+        self._app_version = self.session.config_parser.compute_engine_version
+        self._param_set_name = self.session.config_parser.compute_param_set_name
         self._cluster_size_config = self._emr_config["clusterSize"].get(self._param_set_name).get(self._cluster_size)
         self._emr_release_label = self._emr_config["appVersion"].get(self._app_name).get(self._app_version)
         self._cluster_parameters = self._emr_config["clusterParamSet"].get(self._param_set_name)

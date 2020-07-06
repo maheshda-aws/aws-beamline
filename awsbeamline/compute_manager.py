@@ -25,7 +25,7 @@ class ComputeManager():
             ValueError: Currently we support spark and presto workload on EMR. Value error is raised non EMR workloads.
         """
         self.session = session
-        self.job_config = self.session.job_config
+        self.job_config = self.session.config_parser
         if self.job_config.compute_engine in ["spark", "presto"]:
             self.compute_client = self.session.emr_session
             self.compute_config = EMRConfig(session=self.session, emr_config_file=os.environ["BEAMLINE_EMR_CONFIG_LOCATION"]

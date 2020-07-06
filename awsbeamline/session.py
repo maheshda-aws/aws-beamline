@@ -10,11 +10,12 @@ from urllib.parse import urlparse
 
 import awsbeamline.constants as constants
 from awsbeamline.s3 import S3
-from awsbeamline.emr import EMR
+from awsbeamline.emr import EMR 
 from awsbeamline.emr_config import EMRConfig
 from awsbeamline.task_manager import TaskManager
-from awsbeamline.workload_config import WorkloadConfig
+from awsbeamline.workload_config import WorkloadConfigParser
 from awsbeamline.compute_manager import ComputeManager
+from awsbeamline.datewildcard import ReplaceWildcard
 
 
 
@@ -88,15 +89,24 @@ class Session:
     @property
     def session_date(self):
         return datetime.strptime(self.session_date_str, self.session_date_format)
+    
+    @property
+    def date_wildcards(self):
+        return ReplaceWildcard(date=self.session_date)
 
     @property
-    def job_config(self):
+    def job_instance_config(self):
         if urlparse(self.job_config_location).scheme == "s3":
-            job_config = WorkloadConfig(job_config_file_location=self.s3_session.get_s3_file(self.job_config_location))
+            job_instance_config = self.s3_session.read_s3_file_content(self.job_config_location)
+            #job_config = WorkloadConfig(job_config_file_location=self.s3_session.read_s3_file_content(self.job_config_location))
         else:
-            job_config = WorkloadConfig(self.job_config_location)
+            job_instance_config = open(self.job_config_location)
 
-        return job_config
+        return job_instance_config
+    
+    @property
+    def config_parser(self):
+        return WorkloadConfigParser(self.job_instance_config)
 
 
 #s = Session(job_config_location="config/examples/job_definition/spark_sql.yaml", profile_name="test", run_date_str="2019-09-19T15:38:10")

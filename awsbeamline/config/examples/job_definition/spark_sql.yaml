@@ -12,7 +12,7 @@ spec:
     engine: spark
     engineVersion: 2.4.4
   executable:
-    location: s3://beamline-us-east-1-beta/sql/test.sql
+    location: s3://beamline-us-east-1-beta/config/SQL/maheshda/maheshda_test_spark.sql
     output:
-      location: s3://maheshda-file-bucket/beamline_output2/year=2019/month=12/date=20/
+      location: s3://maheshda-file-bucket/beamline_output2/year=${YYYY}/month=${MM}/date=${DD}/
       format: parquet

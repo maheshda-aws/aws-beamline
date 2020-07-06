@@ -6,14 +6,15 @@ logging.basicConfig(
     level=logging.INFO,
     datefmt='%Y-%m-%dT%H:%M:%S')
 
-class WorkloadConfig:
+class WorkloadConfigParser:
 
     def __init__(self, job_config_file_location):
-        self._job_config = yaml.load(open(job_config_file_location), Loader=yaml.FullLoader)
+        self._job_config = yaml.load(job_config_file_location, Loader=yaml.FullLoader)
         self.job_type = self._job_config.get("kind")
         self._metadata = self._job_config.get("spec").get("metadata")
         self._compute = self._job_config.get("spec").get("compute")
         self._executable = self._job_config.get("spec").get("executable")
+        self._environment = self._job_config.get("spec").get("environment")
 
 
     @property

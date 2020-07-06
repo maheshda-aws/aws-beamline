@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import logging
+from datetime import datetime
 from argparse import ArgumentParser
 
 from awsbeamline.session import Session
@@ -55,8 +56,8 @@ class Beamline():
         parser = ArgumentParser(description="Execute task instance in client mode")
         parser.add_argument("-n", "--name", action="store", dest="profile_name", help="Task profile name")
         parser.add_argument("-c", "--config-file", action="store", dest="config_file", help="Task config file in S3")
-        parser.add_argument("-d", "--rundate", action="store", dest="run_date", help="Run date  for task instance.")
-        parser.add_argument("-f", "--rundateformat", action="store", dest="run_date_format", help="Run date format in unix format for task instance.")
+        parser.add_argument("-d", "--rundate", action="store", dest="run_date", help="Run date  for task instance.", default=datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+        parser.add_argument("-f", "--rundateformat", action="store", dest="run_date_format", help="Run date format in unix format for task instance." , default="%Y-%m-%dT%H:%M:%S")
         args = parser.parse_args(sys.argv[2:])
         logging.info("Executing beamline task in client mode, arguments={}".format(args))
         session = Session(job_config_location=args.config_file,

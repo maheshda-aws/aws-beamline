@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from awsbeamline.datewildcard import DateWildcard
+from awsbeamline.datewildcard import ReplaceWildcard
 
 
 logging.basicConfig(
@@ -12,11 +12,14 @@ logging.basicConfig(
 class TaskManager():
     def __init__(self, session):
         self.session = session
+        self.task_instance_file = "s3://" + self.session.constants.BEAMLINE_BUCKET_NAME + "/task_instaces/" + self.session.profile_name + "/" + str(self.session.session_instance_id) + ".yaml"
+        self.task_instance_executable = "s3://" + self.session.constants.BEAMLINE_BUCKET_NAME + "/task_instaces/" + self.session.profile_name + "/" + str(self.session.session_instance_id)
 
     def create_task_instance(self):
         logging.info("Creating instance config.")
-        executable_path = self.session.job_config.executable_location
-        
+        self.session.s3_session.put_s3_object_content(s3_object=self.task_instance_file, content=self.session.job_instance_config)
+        self.session.s3_session.put_s3_object_content(s3_object=self.task_instance_executable, content=self.session.s3_session.read_s3_file_content(self.session.config_parser.executable_location))
+        return True
 
 
     def register_task(self, overwrite):
@@ -41,6 +44,7 @@ class TaskManager():
 
     def execute_sparksql_task(self):
         try:
+            self.create_task_instance()
             cluster_id =self.session.compute_manager.start_compute().get("JobFlowId")
             logging.info("Cluster Id: {}".format(cluster_id))
             cluster_state = self.session.compute_manager.get_cluster_status(cluster_id)
@@ -50,10 +54,11 @@ class TaskManager():
                 cluster_state = self.session.compute_manager.get_cluster_status(cluster_id)
             logging.info("Cluster with id = {} is created.".format(cluster_id))
             response = self.session.compute_manager.submit_sql_step(cluster_id=cluster_id,
-                                                                    sql_script=self.session.job_config.executable_location,
-                                                                    output_location=self.session.job_config.sql_output_location,
-                                                                    output_format=self.session.job_config.sql_output_format)
+                                                                    sql_script=self.task_instance_executable,
+                                                                    output_location=self.session.config_parser.sql_output_location,
+                                                                    output_format=self.session.config_parser.sql_output_format)
             logging.info("Response={}".format(response))
+            print(response)
             return response
         except Exception:
             logging.error("Error occurred while executing workload.")
