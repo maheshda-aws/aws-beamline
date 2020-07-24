@@ -57,8 +57,7 @@ class TaskManager():
                                                                     sql_script=self.task_instance_executable,
                                                                     output_location=self.session.config_parser.sql_output_location,
                                                                     output_format=self.session.config_parser.sql_output_format)
-            logging.info("Response={}".format(response))
-            print(response)
+            logging.debug("Response={}".format(response))
             return response
         except Exception:
             logging.error("Error occurred while executing workload.")

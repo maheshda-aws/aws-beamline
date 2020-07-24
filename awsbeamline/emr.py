@@ -403,7 +403,7 @@ class EMR:
             str -- State of cluster like WAITING, RUNNING, STARTING etc.
         """
         response: Dict = self._client_emr.describe_cluster(ClusterId=cluster_id)
-        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        #logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
         return response["Cluster"]["Status"]["State"]
 
     def get_cluster_description(self, cluster_id: str):
@@ -434,7 +434,7 @@ class EMR:
             Dictionary-- Response of list_instances API
         """
         response: Dict = self._client_emr.list_instances(ClusterId=cluster_id, InstanceGroupTypes=instance_group_types)
-        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        logging.debug(f"Response: \n{json.dumps(response, default=str, indent=4)}")
         return response
 
     def terminate_cluster(self, cluster_id: str) -> None:
@@ -450,7 +450,7 @@ class EMR:
         response: Dict = self._client_emr.terminate_job_flows(JobFlowIds=[
             cluster_id,
         ])
-        logging.info(f"Response: \n{json.dumps(response, default=str, indent=4)}")
+        logging.debug(f"Response: \n{json.dumps(response, default=str, indent=4)}")
         return response
 
     def build_sql_step(self, sql_script: str, output_location: str, output_format: str, 
@@ -472,7 +472,7 @@ class EMR:
                         ]
             }
         }
-        logging.info("Step definition: json.dumps(step, default=str, indent=4)")
+        logging.debug("Step definition: json.dumps(step, default=str, indent=4)")
         return step
 
     def submit_sql_step(self,
@@ -484,5 +484,6 @@ class EMR:
 
         step = self.build_sql_step(sql_script=sql_script, output_location=output_location, output_format=output_format, action_on_failure=action_on_failure)
         response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
-        logging.info(f"response: \n{json.dumps(response, default=str, indent=4)}")
+        logging.info("Task submission response: {}".format( json.dumps(response, default=str, indent=4)))
+
         return response["StepIds"][0]

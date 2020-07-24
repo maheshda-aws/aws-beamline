@@ -32,7 +32,7 @@ class S3:
         object_key = urlparse(s3_object).path[1:]
         object_body = self._client_s3.get_object(Bucket=bucket_name,
                                    Key=object_key)['Body'].read().decode("utf-8")
-        print(object_body)
+        logging.debug(object_body)
         return self._session.date_wildcards.replace_wildcard(wildcard_string = object_body)
 
 

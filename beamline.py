@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import sys
 import time
@@ -28,13 +28,13 @@ class Beamline():
         parser.add_argument("command", help="Subcommand to run")
         args = parser.parse_args(sys.argv[1:2])
         if not hasattr(self, args.command):
-            print("Unrecognized command")
+            logging.error("Unrecognized command")
             parser.print_help()
             exit(1)
         getattr(self, args.command)()
 
     def register(self):
-        parser = ArgumentParser(description="Generates a task instance")
+        parser = ArgumentParser(description="Generates a task definition")
         parser.add_argument("-c", "--config-file", action="store", dest="config_file", help="Task config file path")
         parser.add_argument("-o", "--overwrite", action="store_true", dest="overwrite", help="Overwrite existing ")
         args = parser.parse_args(sys.argv[2:])
