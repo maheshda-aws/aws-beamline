@@ -63,12 +63,3 @@ class WorkloadConfigParser:
         else:
             raise ValueError("Invalid parameter: sql_output_format for non SQL job.")
     
-
-
-"""
-e = EMRConfig("XL", "spark", "2.4.4", "default")
-print(e.spot_bid_percentage_of_on_demand_task)
-print(e.spot_timeout_to_on_demand_task)
-print(e.emr_release_label)
-
-"""

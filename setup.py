@@ -22,8 +22,9 @@ setup(
     packages=find_packages(include=["awsbeamline", "awsbeamline.*"]),
     python_requires=">=3.6",
     install_requires=[
-        "botocore~=1.13.25",
-        "boto3~=1.10.25",
+        "botocore",
+        "boto3",
+        "pyyaml"
     ])
 
 # Clean older build: python setup.py clean --all

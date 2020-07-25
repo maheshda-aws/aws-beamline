@@ -109,7 +109,5 @@ class Session:
         return WorkloadConfigParser(self.job_instance_config)
 
 
-#s = Session(job_config_location="config/examples/job_definition/spark_sql.yaml", profile_name="test", run_date_str="2019-09-19T15:38:10")
-#print(s.session_date.strftime("%Y"))
 
 

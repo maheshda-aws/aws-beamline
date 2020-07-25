@@ -1,0 +1,188 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'This template creates the necessary queue, compute environment and jobdefinition for Beamline.  **WARNING**
+  You will be billed for the AWS resources used if you create a stack from this template.'
+Parameters:
+  ProcessImageName:
+    Type: String
+    Description: 'Name and tag of Process Container Image'
+    Default: 'beamline:latest'
+  JobDefinitionvCPUs:
+    Type: Number
+    Description: 'Number of vCPUs required for the job to execute'
+    Default: '4'
+  JobDefinitionMemory:
+    Type: Number
+    Description: 'Amount of memory required for the job to execute in MB'
+    Default: 8192
+  ComputeEnvMaxvCpus:
+    Type: Number
+    Description: 'Max number of vCPUs available in the compute enviroment. Note:- Parallelism=ComputeEnvMaxvCpus/JobDefinitionvCPUs'
+    Default: 16
+  QueuePriority:
+    Type: Number
+    Description: 'Queue Priority'
+    Default: 100
+  BeamlineS3Bucket:
+    Type: String
+    Description: 'S3 Bucket to store job instance file'
+    Default: beamline-us-east-1-beta
+  BeamlineComputeConfig:
+    Type: String
+    Description: 'Config file path for compute size.'
+    Default: /aws-beamline/awsbeamline/config/emr.yaml
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Security Group for instances launched in the VPC by Batch
+      VpcId:
+        Ref: VPC
+  Subnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: VPC
+      MapPublicIpOnLaunch: 'True'
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTable
+      SubnetId:
+        Ref: Subnet
+  BatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: batch.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+  BatchJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonElasticMapReduceFullAccess
+      - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      - arn:aws:iam::aws:policy/AWSBatchFullAccess
+  IamInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+      - Ref: EcsInstanceRole
+  EcsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2008-10-17'
+        Statement:
+        - Sid: ''
+          Effect: Allow
+          Principal:
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+  JobDefinition:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      ContainerProperties:
+        Image: !Join ['', [!Ref 'AWS::AccountId','.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref ProcessImageName ] ]
+        Vcpus: !Ref JobDefinitionvCPUs
+        Memory: !Ref JobDefinitionMemory
+        JobRoleArn:
+          Ref: BatchJobRole
+        Command:
+        - python3
+        - /aws-beamline/beamline.py
+        - execute_task_instance
+        - "-n"
+        - test
+        - "-c"
+        - s3://beamline-us-east-1-beta/config/SQL/maheshda/maheshda_test_spark
+        Environment:
+            - Name: BEAMLINE_BUCKET_NAME
+              Value: !Ref BeamlineS3Bucket
+            - Name: BEAMLINE_EMR_CONFIG_LOCATION
+              Value: !Ref BeamlineComputeConfig
+            - Name: AWS_DEFAULT_REGION
+              Value: !Ref 'AWS::Region'
+      RetryStrategy:
+        Attempts: 3
+  JobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      Priority: !Ref QueuePriority
+      ComputeEnvironmentOrder:
+      - Order: 1
+        ComputeEnvironment:
+          Ref: ComputeEnvironment
+  ComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ComputeResources:
+        Type: EC2
+        MinvCpus: 0
+        DesiredvCpus: 0
+        MaxvCpus: !Ref ComputeEnvMaxvCpus
+        InstanceTypes:
+        - optimal
+        Subnets:
+        - Ref: Subnet
+        SecurityGroupIds:
+        - Ref: SecurityGroup
+        InstanceRole:
+          Ref: IamInstanceProfile
+      ServiceRole:
+        Ref: BatchServiceRole
+Outputs:
+  ComputeEnvironmentArn:
+    Value:
+      Ref: ComputeEnvironment
+  JobQueueArn:
+    Value:
+      Ref: JobQueue
+  JobDefinitionArn:
+    Value:
+      Ref: JobDefinition
