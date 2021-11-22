@@ -10,15 +10,15 @@ Parameters:
   JobDefinitionvCPUs:
     Type: Number
     Description: 'Number of vCPUs required for the job to execute'
-    Default: '4'
+    Default: 2
   JobDefinitionMemory:
     Type: Number
     Description: 'Amount of memory required for the job to execute in MB'
-    Default: 8192
+    Default: 4096
   ComputeEnvMaxvCpus:
     Type: Number
     Description: 'Max number of vCPUs available in the compute enviroment. Note:- Parallelism=ComputeEnvMaxvCpus/JobDefinitionvCPUs'
-    Default: 16
+    Default: 64
   QueuePriority:
     Type: Number
     Description: 'Queue Priority'
@@ -133,8 +133,7 @@ Resources:
         JobRoleArn:
           Ref: BatchJobRole
         Command:
-        - python3
-        - /aws-beamline/beamline.py
+        - beamline
         - execute_task_instance
         - "-n"
         - test

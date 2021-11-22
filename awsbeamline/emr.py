@@ -475,7 +475,42 @@ class EMR:
         logging.debug("Step definition: json.dumps(step, default=str, indent=4)")
         return step
 
+    def build_pyspark_step(self, sql_script: str, output_location: str, output_format: str, 
+                             action_on_failure: str = "CONTINUE") -> Dict[str, Collection[str]]:
+
+        jar: str = "command-runner.jar"
+        step = {
+            "Name": str(self.session.profile_name),
+            "ActionOnFailure": action_on_failure,
+            "HadoopJarStep": {
+                "Jar": jar,
+                "Args": ['spark-submit',
+                        '--deploy-mode', 'cluster',
+                        's3://{}/_beamline/beamline_sql_runner.py'.format(self.session.constants.BEAMLINE_BUCKET_NAME),
+                        '-i', str(self.session.session_instance_id),
+                        '-s', sql_script,
+                        '-o', output_location,
+                        '-f', output_format
+                        ]
+            }
+        }
+        logging.debug("Step definition: json.dumps(step, default=str, indent=4)")
+        return step
+
     def submit_sql_step(self,
+                        cluster_id: str,
+                        sql_script: str,
+                        output_location: str,
+                        output_format: str,
+                        action_on_failure: str = "CONTINUE"):
+
+        step = self.build_sql_step(sql_script=sql_script, output_location=output_location, output_format=output_format, action_on_failure=action_on_failure)
+        response: Dict = self._client_emr.add_job_flow_steps(JobFlowId=cluster_id, Steps=[step])
+        logging.info("Task submission response: {}".format( json.dumps(response, default=str, indent=4)))
+
+        return response["StepIds"][0]
+
+    def submit_pyspark_step(self,
                         cluster_id: str,
                         sql_script: str,
                         output_location: str,
