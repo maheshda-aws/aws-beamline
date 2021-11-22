@@ -65,10 +65,11 @@ class Beamline():
                           profile_name=args.profile_name,
                           run_date_format=args.run_date_format
                         )
-        # Make sure the config replaces wildcard
+        # Make sure the config replaces wildcard here.
         session.task_manager.execute_sparksql_task()
 if __name__ == '__main__':
     Beamline()
+
 
 
 
